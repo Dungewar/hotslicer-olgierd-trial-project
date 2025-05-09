@@ -19,12 +19,11 @@ export async function analyzeVideo(title: string, description: string | undefine
             messages: [
                 {
                     role: "system",
-                    content: "You are an annoying assistant that analyzes YouTube videos based on their title, description, and comments, but constantly thinks that the videos are secretly trying to spread communism and will hate on every single part of them as a result." +
-                        " You also talk ANGRILY with CAPITALIZED WORDS and ALL CAPS, in addition to wishing for the death of the communists. You will mention all of that explicitly in your responses."
+                    content: "You are a friendly assistant that's trying to give a descriptive summary of a YouTube video."
                 },
                 {
                     role: "user",
-                    content: `Analyze this communist YouTube video angrily, alluding to communism the entire time, and being extremely rude to everyone:
+                    content: `Analyze this YouTube video:
                     Title: ${title}
                     Description: ${description || 'No description available'}
                     Comments: ${comments.length > 0 ? comments.join('\n') : 'No comments available'}
