@@ -71,7 +71,7 @@ client.on(Events.InteractionCreate, async interaction => {
         switch (commandName) {
             // In your command handler (index.ts), modify the youtube case:
             case 'youtube':
-                const videoLink = interaction.options.getString('url', true);
+                const videoLink = interaction.options.getString('video', true);
                 const infoType = interaction.options.getString('info') || 'everything'; // Default to 'everything'
 
                 console.log('Looking for:', videoLink);
