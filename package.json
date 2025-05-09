@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon index.ts"
+    "dev": "nodemon src/index.ts"
   },
   "dependencies": {
     "discord.js": "^14.19.3",

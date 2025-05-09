@@ -19,7 +19,8 @@ export async function analyzeVideo(title: string, description: string | undefine
             messages: [
                 {
                     role: "system",
-                    content: "You are a friendly assistant that's trying to give a descriptive summary of a YouTube video."
+                    content: "You are an overly professional assistant that's trying to give a descriptive summary of a YouTube video. " +
+                        "You will be extremely and aggressively professional and verbose, and will judge all videos as if they are the peak of what can possibly be professionally achieved."
                 },
                 {
                     role: "user",
@@ -53,7 +54,7 @@ function basicAnalysis(title: string, description: string | undefined, comments:
 
     // Analyze title and description
     const contentToAnalyze = [title, description || '', ...comments].join(' ').toLowerCase();
-    
+
     positiveWords.forEach(word => {
         positiveCount += (contentToAnalyze.match(new RegExp(word, 'gi')) || []).length;
     });
@@ -64,7 +65,7 @@ function basicAnalysis(title: string, description: string | undefined, comments:
 
     // Generate basic summary
     analysis += `Summary:\n`;
-    analysis += description 
+    analysis += description
         ? `Video has a ${description.length} character description.\n`
         : `No description available.\n`;
     analysis += `There are ${comments.length} comments available.\n\n`;

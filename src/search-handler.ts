@@ -1,19 +1,20 @@
-import { google } from 'googleapis';
+import {google, youtube_v3} from 'googleapis';
 import * as dotenv from 'dotenv';
+import {decodeHtmlEntities} from "./utils";
 
 // Load environment variables
 dotenv.config();
 
 // Update the interface to make all fields optional since they might be undefined
 interface VideoResult {
-    title: string | undefined;
-    videoId: string | undefined;
-    thumbnail: string | undefined;
-    channelTitle: string | undefined;
-    description?: string | undefined;
-    views?: string | undefined;
-    duration?: string | undefined;
-    likes?: string | undefined;
+    title: string;            // Required
+    videoId: string;          // Required
+    channelTitle: string;     // Required
+    thumbnail?: string;       // Optional
+    description?: string;     // Optional
+    views?: string;           // Optional
+    duration?: string;        // Optional
+    likes?: string;          // Optional
 }
 
 // Create YouTube client as a function to ensure env is loaded
@@ -42,28 +43,37 @@ function extractVideoId(url: string): string | null {
 }
 
 export async function searchVideo(query: string): Promise<VideoResult[] | null> {
+    function verifiedInfo(videoInfo: youtube_v3.Schema$Video | undefined) {
+        if (!videoInfo?.snippet?.title || !videoInfo.id || !videoInfo.snippet?.channelTitle) {
+            return null;
+        }
+
+        const result: VideoResult = {
+            title: videoInfo.snippet.title,
+            videoId: videoInfo.id,
+            channelTitle: videoInfo.snippet.channelTitle,
+            thumbnail: videoInfo.snippet.thumbnails?.default?.url ?? undefined,
+            description: videoInfo.snippet.description ?? undefined,
+            views: videoInfo.statistics?.viewCount ?? undefined,
+            duration: videoInfo.contentDetails?.duration ?? undefined,
+            likes: videoInfo.statistics?.likeCount ?? undefined
+        };
+
+        return [result];
+    }
+
     try {
         const videoId = extractVideoId(query);
         const youtube = getYoutubeClient();
-        
-        if (videoId) {
-            const videoInfo = await getVideoInfo(videoId);
-            if (!videoInfo) return null;
-            
-            const result: VideoResult = {
-                title: videoInfo.snippet?.title ?? undefined,
-                videoId: videoInfo.id ?? undefined,
-                thumbnail: videoInfo.snippet?.thumbnails?.default?.url ?? undefined,
-                channelTitle: videoInfo.snippet?.channelTitle ?? undefined,
-                description: videoInfo.snippet?.description ?? undefined,
-                views: videoInfo.statistics?.viewCount ?? undefined,
-                duration: videoInfo.contentDetails?.duration ?? undefined,
-                likes: videoInfo.statistics?.likeCount ?? undefined
-            };
 
-            return result.title && result.videoId && result.channelTitle ? [result] : null;
+        if (videoId) {
+            // Direct video ID lookup
+            const videoInfo = await getVideoInfo(videoId);
+
+
+            return verifiedInfo(videoInfo);
         } else {
-            // First get search results
+            // Search query
             const searchResponse = await youtube.search.list({
                 part: ['snippet'],
                 q: query,
@@ -71,29 +81,12 @@ export async function searchVideo(query: string): Promise<VideoResult[] | null> 
                 type: ['video']
             });
 
-            if (!searchResponse.data.items || searchResponse.data.items.length === 0) {
+            if (!searchResponse.data.items?.[0]?.id?.videoId) {
                 return null;
             }
 
-            // Get full video info for the first result
-            const firstVideoId = searchResponse.data.items[0].id?.videoId;
-            if (!firstVideoId) return null;
-
-            const videoInfo = await getVideoInfo(firstVideoId);
-            if (!videoInfo) return null;
-
-            const result: VideoResult = {
-                title: videoInfo.snippet?.title ?? undefined,
-                videoId: videoInfo.id ?? undefined,
-                thumbnail: videoInfo.snippet?.thumbnails?.default?.url ?? undefined,
-                channelTitle: videoInfo.snippet?.channelTitle ?? undefined,
-                description: videoInfo.snippet?.description ?? undefined,
-                views: videoInfo.statistics?.viewCount ?? undefined,
-                duration: videoInfo.contentDetails?.duration ?? undefined,
-                likes: videoInfo.statistics?.likeCount ?? undefined
-            };
-
-            return result.title && result.videoId && result.channelTitle ? [result] : null;
+            const videoInfo = await getVideoInfo(searchResponse.data.items[0].id.videoId);
+            return verifiedInfo(videoInfo);
         }
     } catch (error) {
         console.error('Error with YouTube operation:', error);
@@ -116,7 +109,9 @@ export async function getVideoInfo(videoId: string) {
         throw error;
     }
 }
+
 // In search-handler.ts
+
 export async function getVideoComments(videoId: string, maxResults: number = 10) {
     try {
         const youtube = getYoutubeClient();
@@ -133,11 +128,13 @@ export async function getVideoComments(videoId: string, maxResults: number = 10)
 
         return response.data.items.map(item => ({
             authorName: item.snippet?.topLevelComment?.snippet?.authorDisplayName ?? undefined,
-            text: item.snippet?.topLevelComment?.snippet?.textDisplay ?? undefined,
+            text: item.snippet?.topLevelComment?.snippet?.textDisplay 
+                ? decodeHtmlEntities(item.snippet.topLevelComment.snippet.textDisplay)
+                : undefined,
             likeCount: item.snippet?.topLevelComment?.snippet?.likeCount ?? undefined,
             publishedAt: item.snippet?.topLevelComment?.snippet?.publishedAt ?? undefined
-        })).filter(comment => 
-            comment.authorName !== undefined && 
+        })).filter(comment =>
+            comment.authorName !== undefined &&
             comment.text !== undefined
         );
     } catch (error) {
